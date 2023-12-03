@@ -250,10 +250,10 @@ test "example input produces 8" {
     try max_values.put("blue", 14);
 
     var sumOfPossible:u32 = 0;
-    var iterator = std.mem.split(input, "\n");
+    var iterator = std.mem.split(u8, input, "\n");
     while (iterator.next()) |line| {
         std.debug.print("line: {s}\n", .{line});
-        sumOfPossible = addToSumIfPossible(line, sumOfPossible);
+        sumOfPossible = addToSumIfPossible(line, sumOfPossible, max_values);
     }
     try expect(sumOfPossible == 8);
 }
