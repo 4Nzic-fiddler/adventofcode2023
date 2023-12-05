@@ -1,9 +1,14 @@
 const std = @import("std");
 
 
-pub fn getScoreForCard(card_line: []const u8) !u32 {
-    var card_num:u32 = 0;
-    var card_score:u32 = 0;
+const Card = struct{
+    card_num: u32,
+    score: u32,
+    num_winning_numbers: u32,
+};
+
+pub fn getScoreForCard(card_line: []const u8) !Card {
+    var card = Card{ .card_num = 0, .score = 0, .num_winning_numbers = 0 };
     const allocator = std.heap.page_allocator;
     var winning_numbers = std.StringHashMap(bool).init(allocator);
     defer winning_numbers.deinit();
@@ -11,15 +16,15 @@ pub fn getScoreForCard(card_line: []const u8) !u32 {
     // Split line by ':' to get "Card #" and the rest of the line
     var token_iterator = std.mem.split(u8, card_line, ":");
     if (token_iterator.next()) |token| {
-        var card = std.mem.trim(u8, token, " ");
+        var card_and_num = std.mem.trim(u8, token, " ");
         // Now split the Card string from the number
-        var card_num_iterator = std.mem.split(u8, card, " ");
+        var card_num_iterator = std.mem.split(u8, card_and_num, " ");
         if (card_num_iterator.next()) |card_str| {
             // Verify that the first token is "Card" otherwise this line is malformed
             if (std.mem.eql(u8, card_str, "Card")) {
                 // Now we have the card number, parse it
                 if (card_num_iterator.next()) |card_num_str| { 
-                    card_num = std.fmt.parseInt(u32, card_num_str, 10) catch 0;
+                    card.card_num = std.fmt.parseInt(u32, card_num_str, 10) catch 0;
                 } 
             }
         }
@@ -42,7 +47,7 @@ pub fn getScoreForCard(card_line: []const u8) !u32 {
                     continue;
                 }
                 try winning_numbers.put(winning_number, true);
-                std.debug.print("Added winning number {s}\n", .{winning_number});
+                //std.debug.print("Added winning number {s}\n", .{winning_number});
             }
         }
         // Now get the have_numbers string list and check each one against the winning_numbers hashmap
@@ -57,18 +62,19 @@ pub fn getScoreForCard(card_line: []const u8) !u32 {
                     continue;
                 }
                 if (winning_numbers.contains(have_number)) {
-                    std.debug.print("Card {d} has winning number {s}\n", .{card_num, have_number});
-                    if (card_score == 0) {
-                        card_score = 1;
+                    //std.debug.print("Card {d} has winning number {s}\n", .{card.card_num, have_number});
+                    card.num_winning_numbers += 1;
+                    if (card.score == 0) {
+                        card.score = 1;
                     } else {
-                        card_score *= 2; // double the score
+                        card.score *= 2; // double the score
                     }
                 }
             }
         }
     }
 
-    return card_score;
+    return card;
 }
 
 pub fn solvePartOne() !u32 {
@@ -85,14 +91,67 @@ pub fn solvePartOne() !u32 {
     // Read lines from stdin until EOF is reached. Lines are delimited by '\n'
     while (try in_stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
         if (line.len > 0) {
-            score += try getScoreForCard(line);
+            const card = try getScoreForCard(line);
+            score += card.score;
         }
     }
     return score;
 }
 
+// This is a recursive function that calculates the solution to part two
+// after all the cards and number of winning numbers have been added to the cards_array
+pub fn countCardsAndCopies(cards_array:std.ArrayList(Card), card_index:u64) u32 {
+    var total_cards:u32 = 1; // count this card, whether it's a winner or not
+    if (card_index >= cards_array.items.len) {
+        return total_cards;
+    }
+    var card = cards_array.items[card_index];
+    // These are the copies:
+    for (card_index+1..card_index+card.num_winning_numbers+1) |next_card_index| {
+        total_cards += countCardsAndCopies(cards_array, next_card_index);
+    }
+    return total_cards;
+}
+
+pub fn solvePartTwo() !u32 {
+    var total_cards:u32 = 0;
+    var cards_array = std.ArrayList(Card).init(std.heap.page_allocator);
+    defer cards_array.deinit();
+    // Open input file and schedule closing it at the end of this block
+    var file = try std.fs.cwd().openFile("input.txt", .{});
+    defer file.close();
+
+    var buf_reader = std.io.bufferedReader(file.reader());
+    var in_stream = buf_reader.reader();
+    // Create a 4k buffer to read lines into
+    var buf: [4096]u8 = undefined;
+
+    // Read lines from stdin until EOF is reached. Lines are delimited by '\n'
+    while (try in_stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
+        if (line.len > 0) {
+            const card = try getScoreForCard(line);
+            try cards_array.append(card);
+        }
+    }
+
+    
+    // Now calculate how many total cards we got by counting copies of each card
+    // Here's how to do a for loop with an index in Zig:
+    for (0..cards_array.items.len) |i| {
+        // and this is a recursive function that calculates the count 
+        // efficiently, without copying any cards in memory.
+        total_cards += countCardsAndCopies(cards_array, i);
+    }
+   
+
+    return total_cards;
+}
+
 
 pub fn main() !void {
     var score = try solvePartOne();
-    std.debug.print("Part 1 Score: {}\n", .{score});
+    std.debug.print("\nPart 1 Score: {}\n", .{score});
+
+    var total_cards = try solvePartTwo();
+    std.debug.print("\nPart 2 Total Cards: {}\n", .{total_cards});
 }
