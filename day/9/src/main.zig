@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub fn predictNextNumber(number_list:std.ArrayList(i32)) !i32 {
+pub fn predictNextNumber(number_list:std.ArrayList(i32), direction:i32) !i32 {
     var next_list:std.ArrayList(i32) = std.ArrayList(i32).init(std.heap.page_allocator);
     var last_number:i32 = 0;
     var skipped_first_number:bool = false;
@@ -19,11 +19,23 @@ pub fn predictNextNumber(number_list:std.ArrayList(i32)) !i32 {
     if (all_are_zero) {
         return 0;
     } 
-    return try predictNextNumber(next_list) + number_list.items[number_list.items.len - 1];
+    var adjacent_number:i32 = 0;
+    if (direction > 0) {
+        adjacent_number = number_list.items[number_list.items.len - 1];
+    } else {
+        adjacent_number = number_list.items[0];
+    }
+    return try predictNextNumber(next_list, direction)*direction + adjacent_number;
 }
 
 pub fn solvePart(part_num:u8) !i32 {
     var sum_of_prediction_numbers:i32 = 0; // this will be the answer to part one
+    var direction:i32 = 1;
+    if (part_num == 1) {
+        direction = 1; // predict forward (next value in sequence) for part 1
+    } else {
+        direction = -1; // predict backward (previous value in sequence) for part 2
+    }
     // Open input file and schedule closing it at the end of this block
     var file = try std.fs.cwd().openFile("input.txt", .{});
     defer file.close();
@@ -45,15 +57,12 @@ pub fn solvePart(part_num:u8) !i32 {
                 var number:i32 = try std.fmt.parseInt(i32, number_string, 10);
                 try number_list.append(number);
             }
-            var predicted_number:i32 = try predictNextNumber(number_list);
+            var predicted_number:i32 = try predictNextNumber(number_list, direction);
             sum_of_prediction_numbers += predicted_number;
         }
     }
-    if (part_num == 1) {
-        return sum_of_prediction_numbers;
-    } else {
-        return 0;
-    }
+    
+    return sum_of_prediction_numbers;
     
 }
 
@@ -61,11 +70,7 @@ pub fn main() !void {
     const sum_of_predictions:i32 = try solvePart(1);
     std.debug.print("Answer to part one: {d}\n", .{sum_of_predictions});
     
+    const sum_of_predictions2:i32 = try solvePart(2);
+    std.debug.print("Answer to part two: {d}\n", .{sum_of_predictions2});    
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
