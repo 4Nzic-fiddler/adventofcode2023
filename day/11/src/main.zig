@@ -12,7 +12,7 @@ const Galaxy = struct {
     }
 };
 
-pub fn expandUniverse(galaxies: *std.ArrayList(Galaxy), empty_cols:std.ArrayList(bool), empty_rows:std.ArrayList(bool)) void {
+pub fn expandUniverse(expand_by:usize, galaxies: *std.ArrayList(Galaxy), empty_cols:std.ArrayList(bool), empty_rows:std.ArrayList(bool)) void {
     // Let's go BACKWARDS through the list of empty cols and empty rows
     // and move galaxies to the right and down as the empty cols and rows expand
     var row:usize = empty_rows.items.len - 2;
@@ -22,7 +22,7 @@ pub fn expandUniverse(galaxies: *std.ArrayList(Galaxy), empty_cols:std.ArrayList
             for (0..galaxies.items.len) |i| {
                 var galaxy_ptr = &galaxies.items[i];
                 if (galaxy_ptr.row > row) {
-                    galaxy_ptr.row += 1;
+                    galaxy_ptr.row += expand_by;
                 }
             }
         }
@@ -36,7 +36,7 @@ pub fn expandUniverse(galaxies: *std.ArrayList(Galaxy), empty_cols:std.ArrayList
             for (0..galaxies.items.len) |i| {
                 var galaxy_ptr = &galaxies.items[i];
                 if (galaxy_ptr.col > col) {
-                    galaxy_ptr.col += 1;
+                    galaxy_ptr.col += expand_by;
                 }
             }
         }
@@ -45,7 +45,7 @@ pub fn expandUniverse(galaxies: *std.ArrayList(Galaxy), empty_cols:std.ArrayList
     }
 }
 
-pub fn main() !void {
+pub fn solvePart(part_num:u8) !void {
     const allocator = std.heap.page_allocator;
     var empty_rows = std.ArrayList(bool).init(allocator);
     var empty_cols = std.ArrayList(bool).init(allocator);
@@ -92,7 +92,14 @@ pub fn main() !void {
     }
     
     // Expand the universe by moving galaxies to the right and down as needed
-    expandUniverse(&galaxies, empty_cols, empty_rows);
+    if (part_num == 1) {
+        expandUniverse(1, &galaxies, empty_cols, empty_rows);
+    } else if (part_num == 2) {
+        // "Replace each empty row with 1 million rows and each empty column with 1 million columns"
+        // means we need to expand by 1 million - 1
+        expandUniverse(1000000-1, &galaxies, empty_cols, empty_rows);
+    }
+ 
 
     // Part 1: Get the distance from each galaxy to every other galaxy
     // but only count the distance once (i.e. don't count the distance from A to B and B to A)
@@ -104,5 +111,11 @@ pub fn main() !void {
             total_distance += galaxy.distance(other);
         }
     }
-    std.debug.print("Total distance: {d}\n", .{total_distance});
+    std.debug.print("Total distance (part {d}): {d}\n", .{part_num, total_distance});
 }
+
+pub fn main() !void {
+    try solvePart(1);
+    try solvePart(2);
+}
+
